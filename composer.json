@@ -1,0 +1,27 @@
+{
+  "name": "bnbwebexpertise/laravel-sequence",
+  "description": "Laravel package to handle model sequence generation (no gap)",
+  "type": "package",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "B&B Web Expertise",
+      "email": "support@bnb.re"
+    }
+  ],
+  "minimum-stability": "stable",
+  "require": {
+    "php": ">=5.6.4",
+    "laravel/framework": ">=5.4.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Bnb\\Laravel\\Sequence\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Bnb\\Laravel\\Sequence\\Tests\\": "tests/"
+    }
+  }
+}
