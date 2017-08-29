@@ -51,7 +51,7 @@ To work with sequence you must enhance your model class with the `Bnb\Laravel\Se
 The `sequences` array property of your model must contain the list of the sequences names :
 
 ```
-    protected $sequences = ['my_sequence'];
+    public $sequences = ['my_sequence'];
 ```
 
 Some sequence properties can be overridden by specifying a method in the model class (where `MySequence` is the name your sequence in PascalCase) :
