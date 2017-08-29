@@ -109,11 +109,12 @@ trait HasSequence
 
             $this->{$name} = $next;
 
-            $this->fireModelEvent(sprintf('sequence_%s_generated', studly_case($name)), false);
 
             if ($save) {
                 $this->save();
             }
+
+            $this->fireModelEvent(sprintf('sequence_%s_generated', studly_case($name)), false);
         }
     }
 
