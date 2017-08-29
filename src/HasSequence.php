@@ -67,12 +67,14 @@ trait HasSequence
      */
     public function generateSequenceNumber($name = null, $save = true)
     {
+        $saved = false;
+
         if (empty($name)) {
             collect($this->sequences)->each(function ($name) {
                 $this->generateSequenceNumber($name, false);
             });
 
-            $this->save();
+            $saved = $this->save();
         } elseif ($this->canGenerateSequenceNumber($name)) {
             $sequence = DB::table($this->getTable())
                 ->select([
@@ -111,11 +113,11 @@ trait HasSequence
 
 
             if ($save) {
-                $this->save();
+                $saved = $this->save();
             }
         }
 
-        if($this->{$name} && !$this->isDirty()) {
+        if($saved) {
             $this->fireModelEvent(sprintf('sequence_%s_generated', studly_case($name)), false);
         }
     }
