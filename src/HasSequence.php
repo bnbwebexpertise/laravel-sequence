@@ -113,7 +113,9 @@ trait HasSequence
             if ($save) {
                 $this->save();
             }
+        }
 
+        if($this->{$name} && !$this->isDirty()) {
             $this->fireModelEvent(sprintf('sequence_%s_generated', studly_case($name)), false);
         }
     }
