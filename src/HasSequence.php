@@ -41,11 +41,15 @@ trait HasSequence
 
             static::deleted(function ($item) use ($connection, $queue) {
                 $changed = collect($item->sequences)->reduce(function ($changed, $name) use ($item) {
-                    return $item->handleSoftDeletedSequence($name, false) || $changed;
-                }, false);
+                    if ($item->handleSoftDeletedSequence($name, false)) {
+                        $changed[$name] = null;
+                    }
 
-                if ($changed) {
-                    $item->save();
+                    return $changed;
+                }, []);
+
+                if ( ! empty($changed)) {
+                    self::query()->whereKey($item->getKey())->onlyTrashed()->update($changed);
                 }
             });
         }
@@ -203,10 +207,11 @@ SQL
 
         $isGapFilling = method_exists($this, $method = 'is' . ucfirst(camel_case($name)) . 'GapFilling') && $this->{$method}();
 
-        if ($this->exists() && $isSoftDelete && $isGapFilling && ! empty($this->{$this->getDeletedAtColumn()}) && $this->{$name}) {
+        if ($this->exists() && $isSoftDelete && $isGapFilling && ! is_null($this->{$this->getDeletedAtColumn()}) && $this->{$name}) {
             $this->{$name} = null;
+
             if ($save) {
-                $this->save();
+                self::query()->where($this->getKeyName(), '=', $this->getKey())->update([$name => null]);
             }
 
             return true;
