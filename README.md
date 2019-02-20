@@ -58,6 +58,7 @@ Some sequence properties can be overridden by specifying a method in the model c
 - sequence start value (per-sequence) with the `getMySequenceStartValue() : int`
 - sequence format (per-sequence) with the `formatMySequenceSequence($next, $last) : int`
 - sequence generation authorization (per-sequence) with the `canGenerateMySequenceSequence() : bool`
+- sequence gap filling mode (per-sequence) `isMySequenceGapFilling() : bool`
 - sequence generation queue connection (for the model class) `getSequenceConnection() : string`
 - sequence generation queue name (for the model class) `getSequenceQueue() : string`
 - sequence auto-dispatch activation (for the model class) `isSequenceAutoDispatch() : bool`
@@ -117,6 +118,15 @@ class MyModel extends Model
         }
 
         return sprintf('%1$04d%2$06d', $newYear, $newCounter);
+    }
+
+    /**
+     * If `true`, the first number available is used, ie. the lowest number available, greater or equal to start number, including gaps caused by deletion (soft-delete included)
+     * If `false` (default value), the next number will always be the last number used + 1 or the first number of the sequence when nothing pre-exists
+     */
+    protected function isSequenceGapFilling()
+    {
+        return false;
     }
 }
 ```
