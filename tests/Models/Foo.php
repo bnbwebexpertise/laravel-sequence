@@ -4,6 +4,7 @@ namespace Bnb\Laravel\Sequence\Tests\Models;
 
 use Bnb\Laravel\Sequence\HasSequence;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * @property int id
@@ -14,9 +15,9 @@ use Illuminate\Database\Eloquent\Model;
 class Foo extends Model
 {
 
-    use HasSequence;
+    use HasSequence, SoftDeletes;
 
-    const SEQ_SEQUENCE_START = 999998;
+    const SEQ_SEQUENCE_START = 999997;
 
     public $timestamps = false;
 
@@ -26,6 +27,12 @@ class Foo extends Model
         'sequence',
         'read_only',
     ];
+
+
+    protected function isSequenceGapFilling()
+    {
+        return true;
+    }
 
 
     protected function canGenerateReadOnlySequence()

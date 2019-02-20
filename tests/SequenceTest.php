@@ -81,10 +81,11 @@ class SequenceTest extends TestCase
     {
         Foo::create(['bar' => 1])->fresh();
         Foo::create(['bar' => 2])->fresh();
+        Foo::create(['bar' => 3])->fresh();
 
         $this->expectException(SequenceOutOfRangeException::class);
 
-        Foo::create(['bar' => 3])->fresh();
+        Foo::create(['bar' => 4])->fresh();
     }
 
 
@@ -135,5 +136,35 @@ class SequenceTest extends TestCase
         $next = $method->invokeArgs(new Foo, [$next, $last]);
 
         $this->assertEquals(sprintf('%1$04d%2$06d', date('Y'), Foo::SEQ_SEQUENCE_START), $next);
+    }
+
+
+    public function test_it_fills_gap()
+    {
+        $foo1 = Foo::create(['bar' => 1])->fresh();
+        $foo2 = Foo::create(['bar' => 2])->fresh();
+        $foo3 = Foo::create(['bar' => 3])->fresh();
+
+        $this->assertGreaterThan(0, $foo1->id);
+        $this->assertGreaterThan(0, $foo2->id);
+        $this->assertGreaterThan(0, $foo3->id);
+        $this->assertGreaterThan($foo1->id, $foo2->id);
+        $this->assertGreaterThan($foo1->sequence, $foo2->sequence);
+        $this->assertGreaterThan($foo2->sequence, $foo3->sequence);
+        $this->assertEquals($this->formatSequence(date('Y'), Foo::SEQ_SEQUENCE_START), $foo1->sequence);
+        $this->assertEquals($this->formatSequence(date('Y'), Foo::SEQ_SEQUENCE_START + 1), $foo2->sequence);
+        $this->assertEquals($this->formatSequence(date('Y'), Foo::SEQ_SEQUENCE_START + 2), $foo3->sequence);
+
+        $foo2->delete();
+
+        $this->assertNotNull($foo2->deleted_at);
+        $this->assertNull($foo2->sequence);
+
+        $foo4 = Foo::create(['bar' => 4])->fresh();
+        $this->assertEquals($this->formatSequence(date('Y'), Foo::SEQ_SEQUENCE_START + 1), $foo4->sequence);
+
+        $this->expectException(SequenceOutOfRangeException::class);
+
+        Foo::create(['bar' => 5]);
     }
 }

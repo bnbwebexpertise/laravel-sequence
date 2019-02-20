@@ -19,6 +19,7 @@ class CreateFooTable extends Migration
             $table->string('bar')->nullable();
             $table->unsignedInteger('sequence')->nullable()->unique();
             $table->unsignedInteger('read_only')->nullable()->unique();
+            $table->softDeletes();
         });
     }
 

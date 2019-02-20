@@ -90,7 +90,7 @@ class UpdateSequence implements ShouldQueue
         }
 
         collect($model->sequences)->each(function ($name) use ($model, $connection, $queue) {
-            $query = $model::query()->whereNull($name);
+            $query = $model::query()->whereNull($name)->orderBy($model->getKeyName());
 
             $query->get([$model->getKeyName()])->each(function ($row) use ($connection, $queue) {
                 $this->dispatch((new self($this->class, $row->id))->onConnection($connection)->onQueue($queue));

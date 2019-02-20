@@ -6,6 +6,7 @@ use Bnb\Laravel\Sequence\Exceptions\InvalidSequenceNumberException;
 use Bnb\Laravel\Sequence\Exceptions\SequenceOutOfRangeException;
 use Bnb\Laravel\Sequence\Jobs\UpdateSequence;
 use DB;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 trait HasSequence
 {
@@ -37,6 +38,16 @@ trait HasSequence
             static::updated(function ($item) use ($connection, $queue) {
                 dispatch((new UpdateSequence(self::class, $item->getKey()))->onConnection($connection)->onQueue($queue));
             });
+
+            static::deleted(function ($item) use ($connection, $queue) {
+                $changed = collect($item->sequences)->reduce(function ($changed, $name) use ($item) {
+                    return $item->handleSoftDeletedSequence($name, false) || $changed;
+                }, false);
+
+                if ($changed) {
+                    $item->save();
+                }
+            });
         }
     }
 
@@ -62,6 +73,7 @@ trait HasSequence
      * @param string $name the sequence name
      * @param bool   $save
      *
+     * @return bool
      * @throws InvalidSequenceNumberException
      * @throws SequenceOutOfRangeException
      */
@@ -83,24 +95,44 @@ trait HasSequence
             }
 
             return $saved;
-        } elseif ($this->canGenerateSequenceNumber($name)) {
-            $sequence = DB::table($this->getTable())
-                ->select([
-                    DB::raw(sprintf('(MAX(%s)) as last_sequence_value', $name)),
-                    DB::raw(sprintf('(MAX(%s) + 1) as next_sequence_value', $name))
-                ])
-                ->whereNotNull($name)
-                ->get()
-                ->first();
+        }
+
+        if ($this->handleSoftDeletedSequence($name)) {
+            return true;
+        }
+
+        if ($this->canGenerateSequenceNumber($name)) {
+            $sequence = null;
+
+            if (method_exists($this, $method = 'is' . ucfirst(camel_case($name)) . 'GapFilling') && $this->{$method}()) {
+                $start = $this->generateSequenceStartValue($name) - 1;
+
+                $sequence = DB::selectOne(DB::raw(<<<SQL
+SELECT 
+  z.expected as next_sequence_value, 
+  z.expected - 1 as last_sequence_value 
+FROM (
+  SELECT @rownum := @rownum + 1 AS expected, IF(@rownum = `{$name}`, 0, @rownum := `{$name}`) AS got
+  FROM (SELECT @rownum := {$start}) AS a JOIN {$this->getTable()} WHERE `{$name}` IS NOT NULL ORDER BY `{$name}`
+) AS z
+WHERE z.got != 0
+SQL
+                ));
+            }
+
+            if (empty($sequence)) {
+                $sequence = DB::table($this->getTable())
+                    ->select([
+                        DB::raw(sprintf('(MAX(%s)) as last_sequence_value', $name)),
+                        DB::raw(sprintf('(MAX(%s) + 1) as next_sequence_value', $name))
+                    ])
+                    ->whereNotNull($name)
+                    ->get()
+                    ->first();
+            }
 
             if ( ! ($next = $sequence->next_sequence_value)) {
-                $defaultStart = config('sequence.start', 1);
-
-                if (method_exists($this, $method = 'get' . ucfirst(camel_case($name)) . 'StartValue')) {
-                    $defaultStart = $this->{$method}($next);
-                }
-
-                $next = $defaultStart;
+                $next = $this->generateSequenceStartValue($name);
             }
 
             $next = intval($next);
@@ -141,5 +173,45 @@ trait HasSequence
     public static function sequenceGenerated($name, $callback)
     {
         static::registerModelEvent(sprintf('sequence_%s_generated', studly_case($name)), $callback);
+    }
+
+
+    /**
+     * @param string $name the sequence name
+     *
+     * @return int the default start value
+     */
+    protected function generateSequenceStartValue($name)
+    {
+        $defaultStart = config('sequence.start', 1);
+
+        if (method_exists($this, $method = 'get' . ucfirst(camel_case($name)) . 'StartValue')) {
+            $defaultStart = $this->{$method}();
+        }
+
+        $next = $defaultStart;
+
+        return intval($next);
+    }
+
+
+    protected function handleSoftDeletedSequence($name, $save = true)
+    {
+        $isSoftDelete = in_array(SoftDeletes::class, class_uses_recursive(
+            get_class($this)
+        ));
+
+        $isGapFilling = method_exists($this, $method = 'is' . ucfirst(camel_case($name)) . 'GapFilling') && $this->{$method}();
+
+        if ($this->exists() && $isSoftDelete && $isGapFilling && ! empty($this->{$this->getDeletedAtColumn()}) && $this->{$name}) {
+            $this->{$name} = null;
+            if ($save) {
+                $this->save();
+            }
+
+            return true;
+        }
+
+        return false;
     }
 }
