@@ -26,7 +26,7 @@ class SequenceTest extends TestCase
     }
 
 
-    protected function setUp()
+    protected function setUp(): void
     {
         if ( ! $this->app) {
             $this->refreshApplication();

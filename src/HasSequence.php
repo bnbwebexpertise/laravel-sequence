@@ -7,6 +7,7 @@ use Bnb\Laravel\Sequence\Exceptions\SequenceOutOfRangeException;
 use Bnb\Laravel\Sequence\Jobs\UpdateSequence;
 use DB;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 trait HasSequence
 {
@@ -65,7 +66,7 @@ trait HasSequence
     {
         $authorized = true;
 
-        if (method_exists($this, $method = 'canGenerate' . ucfirst(camel_case($name)) . 'Sequence')) {
+        if (method_exists($this, $method = 'canGenerate' . ucfirst(Str::camel($name)) . 'Sequence')) {
             $authorized = ! ! $this->{$method}();
         }
 
@@ -94,7 +95,7 @@ trait HasSequence
 
             if ($saved = $this->save()) {
                 collect($generated)->each(function ($name) {
-                    $this->fireModelEvent(sprintf('sequence_%s_generated', studly_case($name)), false);
+                    $this->fireModelEvent(sprintf('sequence_%s_generated', Str::studly($name)), false);
                 });
             }
 
@@ -108,7 +109,7 @@ trait HasSequence
         if ($this->canGenerateSequenceNumber($name)) {
             $sequence = null;
 
-            if (method_exists($this, $method = 'is' . ucfirst(camel_case($name)) . 'GapFilling') && $this->{$method}()) {
+            if (method_exists($this, $method = 'is' . ucfirst(Str::camel($name)) . 'GapFilling') && $this->{$method}()) {
                 $start = $this->generateSequenceStartValue($name) - 1;
 
                 $sequence = DB::selectOne(DB::raw(<<<SQL
@@ -141,7 +142,7 @@ SQL
 
             $next = intval($next);
 
-            if (method_exists($this, $method = 'format' . ucfirst(camel_case($name)) . 'Sequence')) {
+            if (method_exists($this, $method = 'format' . ucfirst(Str::camel($name)) . 'Sequence')) {
                 $next = $this->{$method}($next, $sequence->last_sequence_value);
 
                 if ( ! preg_match('/^\d{1,10}$/', $next)) {
@@ -157,7 +158,7 @@ SQL
 
             if ($save) {
                 if ($this->save()) {
-                    $this->fireModelEvent(sprintf('sequence_%s_generated', studly_case($name)), false);
+                    $this->fireModelEvent(sprintf('sequence_%s_generated', Str::studly($name)), false);
                 }
             }
 
@@ -176,7 +177,7 @@ SQL
      */
     public static function sequenceGenerated($name, $callback)
     {
-        static::registerModelEvent(sprintf('sequence_%s_generated', studly_case($name)), $callback);
+        static::registerModelEvent(sprintf('sequence_%s_generated', Str::studly($name)), $callback);
     }
 
 
@@ -189,7 +190,7 @@ SQL
     {
         $defaultStart = config('sequence.start', 1);
 
-        if (method_exists($this, $method = 'get' . ucfirst(camel_case($name)) . 'StartValue')) {
+        if (method_exists($this, $method = 'get' . ucfirst(Str::camel($name)) . 'StartValue')) {
             $defaultStart = $this->{$method}();
         }
 
@@ -205,7 +206,7 @@ SQL
             get_class($this)
         ));
 
-        $isGapFilling = method_exists($this, $method = 'is' . ucfirst(camel_case($name)) . 'GapFilling') && $this->{$method}();
+        $isGapFilling = method_exists($this, $method = 'is' . ucfirst(Str::camel($name)) . 'GapFilling') && $this->{$method}();
 
         if ($this->exists() && $isSoftDelete && $isGapFilling && ! is_null($this->{$this->getDeletedAtColumn()}) && $this->{$name}) {
             $this->{$name} = null;
